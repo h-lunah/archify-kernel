@@ -42,7 +42,7 @@ cd $KERNELPATH
 echo "$(makej -s kernelversion)-$KERNELSUFFIX" > $CURRENTPATH/version
 cd $CURRENTPATH
 
-KERNELVERSION=$(grep -Po "[0-9]\.[0-9]{1,2}" version)
+KERNELVERSION=$(grep -Po "[0-9]\.[0-9]{1,2}\.[0-9]{1,3}" version)
 rm version
 
 # determine if we have to patch this kernel, do this only with kernels 5.1 and older
