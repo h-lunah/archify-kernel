@@ -1,0 +1,84 @@
+#!/bin/bash
+set -e
+
+# set up variables, these will be checked and used later
+CURRENTBINARY=$(cat /proc/$$/comm)
+CURRENTPATH=$PWD
+KERNELPATH=$1
+KERNELSUFFIX=$2
+
+# run the make command specified as fast as possible
+makej() {
+	make ARCH=x86_64 -j$(nproc) "$@"
+}
+
+# print a verbose message
+msg() {
+  printf "$CURRENTBINARY: $1\n"
+}
+
+# print usage if no parameters provided
+if [[ -z $KERNELPATH ||-z $KERNELSUFFIX ]]; then
+  msg "usage: $CURRENTBINARY path_to_kernel_tree kernel_suffix\nexample: $CURRENTBINARY /path/to/linux-source hardened"
+  exit 1
+fi
+
+# validate the tree
+if ! stat $KERNELPATH &>/dev/null; then
+  msg "$KERNELPATH: no such file or directory"
+  exit 1
+fi
+
+cd $KERNELPATH
+if ! makej -s kernelversion &>/dev/null; then
+  msg "$KERNELPATH: not a linux kernel tree"
+  exit 1
+fi
+cd $CURRENTPATH
+
+# fetch kernel version from tree
+msg "fetching kernel version..."
+cd $KERNELPATH
+echo "$(makej -s kernelversion)-$KERNELSUFFIX" > $CURRENTPATH/version
+cd $CURRENTPATH
+
+KERNELVERSION=$(grep -Po "[0-9]\.[0-9]{1,2}" version)
+rm version
+
+# determine if we have to patch this kernel, do this only with kernels 5.1 and older
+if [ "$KERNELVERSION" = "$(echo -e "$KERNELVERSION\n5.1" | sort -V | head -n1)" ]; then
+  msg "kernel detected is <5.2, patching kernel features required by arch..."
+  ( cd $KERNELPATH && patch -Np1 -i $CURRENTPATH/898490c010b.patch || exit 0 )
+fi
+
+# generate arch build system files
+msg "generating arch build system files..."
+cp localversion.10-pkgrel $KERNELPATH
+echo "-$KERNELSUFFIX" > $KERNELPATH/localversion.20-pkgname
+echo "$KERNELVERSION-$KERNELSUFFIX" > $KERNELPATH/version
+echo "$(cat PKGBUILD.template | sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g")" > $KERNELPATH/PKGBUILD
+
+LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' $KERNELPATH/Makefile | grep -Po '^[^:]+')
+sed -i "${LINE}s/ FORCE//g" $KERNELPATH/Makefile
+
+cd $KERNELPATH
+makej tinyconfig
+makej prepare
+echo "$KERNELVERSION-$KERNELSUFFIX" > $KERNELPATH/include/config/kernel.release
+rm $KERNELPATH/.config
+cd $CURRENTPATH
+
+# tell the user to configure the kernel
+msg "now configure your kernel. press any key to invoke configuration tool..."
+read -p ""
+( cd $KERNELPATH && makej nconfig || exit 0 )
+
+# check if the user made a config here or not, if not, tell them to put a .config later
+if [ ! -f $KERNELPATH/.config ]; then
+  msg "no .config for this $KERNELVERSION kernel was found, you are expected to put your own config now."
+  exit 0
+else
+  msg "ready to build this $KERNELVERSION kernel"
+fi
+
+exit 0
