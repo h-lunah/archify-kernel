@@ -29,9 +29,14 @@ if ! stat $KERNELPATH &>/dev/null; then
   exit 1
 fi
 
-cd $KERNELPATH
-if ! makej -s kernelversion &>/dev/null; then
-  msg "$KERNELPATH: not a linux kernel tree"
+if [[ -d $KERNELPATH ]]; then
+  cd $KERNELPATH
+  if ! makej -s kernelversion &>/dev/null; then
+    msg "$KERNELPATH: not a linux kernel tree"
+    exit 1
+  fi
+else
+  msg "$KERNELPATH: can only patch a directory structure"
   exit 1
 fi
 cd $CURRENTPATH
@@ -64,14 +69,16 @@ sed -i "${LINE}s/ FORCE//g" $KERNELPATH/Makefile
 cd $KERNELPATH
 makej tinyconfig
 makej prepare
-echo "$KERNELVERSION-$KERNELSUFFIX" > $KERNELPATH/include/config/kernel.release
-rm $KERNELPATH/.config
+echo "$KERNELVERSION-$KERNELSUFFIX" > include/config/kernel.release
+rm .config
 cd $CURRENTPATH
 
 # tell the user to configure the kernel
 msg "now configure your kernel. press any key to invoke configuration tool..."
 read -p ""
-( cd $KERNELPATH && makej nconfig || exit 0 )
+cd $KERNELPATH
+makej menuconfig
+cd $CURRENTPATH
 
 # check if the user made a config here or not, if not, tell them to put a .config later
 if [ ! -f $KERNELPATH/.config ]; then
