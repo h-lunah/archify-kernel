@@ -53,18 +53,25 @@ rm version
 # determine if we have to patch this kernel, do this only with kernels 5.1 and older
 if [ "$KERNELVERSION" = "$(echo -e "$KERNELVERSION\n5.1" | sort -V | head -n1)" ]; then
   msg "kernel detected is <5.2, patching kernel features required by arch..."
-  ( cd $KERNELPATH && patch -Np1 -i $CURRENTPATH/898490c010b.patch || exit 0 )
+  ( cd $KERNELPATH && patch -Np1 -i $CURRENTPATH/modinfo-lt52.patch || exit 0 )
 fi
 
 # generate arch build system files
 msg "generating arch build system files..."
-cp localversion.10-pkgrel $KERNELPATH
+source PKGBUILD.template
+echo "-$pkgrel" > $KERNELPATH/localversion.10-pkgrel
 echo "-$KERNELSUFFIX" > $KERNELPATH/localversion.20-pkgname
+
 echo "$KERNELVERSION-$KERNELSUFFIX" > $KERNELPATH/version
 echo "$(cat PKGBUILD.template | sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g")" > $KERNELPATH/PKGBUILD
 
-LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' $KERNELPATH/Makefile | grep -Po '^[^:]+')
-sed -i "${LINE}s/ FORCE//g" $KERNELPATH/Makefile
+LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' $KERNELPATH/Makefile | grep -Po '^[^:]+' || test $? = 1; )
+if [ -n "$LINE" ]; then
+  sed -i "${LINE}s/ FORCE//g" $KERNELPATH/Makefile
+else
+  msg "warning: signature not found. this kernel may overwrite your patched version"
+fi
+( cd $KERNELPATH && patch -Np1 -i $CURRENTPATH/PKGBUILD.patch || msg "patch not applied. kernel will not compile automatically"; exit 0 )
 
 cd $KERNELPATH
 makej tinyconfig
@@ -82,10 +89,10 @@ cd $CURRENTPATH
 
 # check if the user made a config here or not, if not, tell them to put a .config later
 if [ ! -f $KERNELPATH/.config ]; then
-  msg "no .config for this $KERNELVERSION kernel was found, you are expected to put your own config now."
+  msg "no .config for this $KERNELVERSION-$KERNELSUFFIX kernel was found, you are expected to put your own config now."
   exit 0
 else
-  msg "ready to build this $KERNELVERSION kernel"
+  msg "ready to build this $KERNELVERSION-$KERNELSUFFIX kernel"
 fi
 
 exit 0

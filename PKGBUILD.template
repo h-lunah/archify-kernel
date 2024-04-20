@@ -54,7 +54,7 @@ _package() {
   rm -rf "$modulesdir"/{source,build}
 
   echo "Fixing permissions..."
-  chmod -Rc u=rwX,go=rX "$pkgdir"
+  chmod -Rc 644 "$pkgdir"
 }
 
 _package-headers() {
@@ -135,7 +135,7 @@ _package-headers() {
   ln -sr "$builddir" "$pkgdir/usr/src/$pkgbase"
 
   echo "Fixing permissions..."
-  chmod -Rc u=rwX,go=rX "$pkgdir"
+  chmod -Rc 644 "$pkgdir"
 }
 
 _package-docs() {
@@ -157,7 +157,7 @@ _package-docs() {
   ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
 
   echo "Fixing permissions..."
-  chmod -Rc u=rwX,go=rX "$pkgdir"
+  chmod -Rc 644 "$pkgdir"
   rm -rf $SRCDIR/pkg $SRCDIR/src
 }
 
