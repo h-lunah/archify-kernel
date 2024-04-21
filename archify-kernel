@@ -65,7 +65,6 @@ echo "-$pkgrel" > $KERNELPATH/localversion.10-pkgrel
 echo "-$KERNELSUFFIX" > $KERNELPATH/localversion.20-pkgname
 
 echo "$KERNELVERSION-$KERNELSUFFIX" > $KERNELPATH/version
-echo "#define UTS_RELEASE \"$KERNELVERSION-$KERNELSUFFIX\"" > $KERNELPATH/include/generated/utsrelease.h
 echo "$(cat PKGBUILD.template | sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g")" > $KERNELPATH/PKGBUILD
 
 LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' $KERNELPATH/Makefile | grep -Po '^[^:]+' || test $? = 1; )
@@ -80,6 +79,7 @@ cd $KERNELPATH
 makej tinyconfig
 makej prepare
 echo "$KERNELVERSION-$KERNELSUFFIX" > include/config/kernel.release
+echo "#define UTS_RELEASE \"$KERNELVERSION-$KERNELSUFFIX\"" > include/generated/utsrelease.h
 rm .config
 cd $CURRENTPATH
 
