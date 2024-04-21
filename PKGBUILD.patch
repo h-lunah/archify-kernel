@@ -13,7 +13,7 @@ index 967d14dd7..bbc8c662d 100644q
 +}
 +
  _package() {
-   pkgdesc="The kernel and modules"
+   pkgdesc="The $pkgbase kernel and modules"
    depends=(coreutils kmod initramfs)
 @@ -138,30 +144,7 @@ _package-headers() {
    chmod -Rc 644 "$pkgdir"
