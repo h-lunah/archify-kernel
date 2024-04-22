@@ -80,6 +80,7 @@ cd $KERNELPATH
 makej tinyconfig
 makej prepare
 echo "$KERNELVERSION-$KERNELSUFFIX" > include/config/kernel.release
+echo "#define UTS_RELEASE \"$KERNELVERSION-$KERNELSUFFIX\"" > include/generated/utsrelease.h
 rm .config
 cd $CURRENTPATH
 
