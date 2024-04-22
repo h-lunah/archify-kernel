@@ -6,6 +6,7 @@ CURRENTBINARY=$(cat /proc/$$/comm)
 CURRENTPATH=$PWD
 KERNELPATH=$1
 KERNELSUFFIX=$2
+EXTRAOPTION=$3
 
 # run the make command specified as fast as possible
 makej() {
@@ -19,7 +20,7 @@ msg() {
 
 # print usage if no parameters provided
 if [[ -z $KERNELPATH ||-z $KERNELSUFFIX ]]; then
-  msg "usage: $CURRENTBINARY path_to_kernel_tree kernel_suffix\nexample: $CURRENTBINARY /path/to/linux-source hardened"
+  msg "usage: $CURRENTBINARY path_to_kernel_tree kernel_suffix\nexample: $CURRENTBINARY /path/to/linux-source hardened\nuse --no-config to not prompt for .config creation"
   exit 1
 fi
 
@@ -83,10 +84,21 @@ rm .config
 cd $CURRENTPATH
 
 # tell the user to configure the kernel
-msg "now configure your kernel. press any key to invoke configuration tool..."
-read -p ""
-cd $KERNELPATH
-makej menuconfig
+if [ $EXTRAOPTION = "--no-config" ]; then
+  :
+elif [ -z $EXTRAOPTION ]; then
+  msg "now configure your kernel. press any key to invoke configuration tool..."
+  read -p ""
+  cd $KERNELPATH
+  makej menuconfig
+else
+  msg "warning: ignoring unrecognized option $EXTRAOPTION"
+  msg "now configure your kernel. press any key to invoke configuration tool..."
+  read -p ""
+  cd $KERNELPATH
+  makej menuconfig
+fi
+
 cd $CURRENTPATH
 
 # check if the user made a config here or not, if not, tell them to put a .config later
