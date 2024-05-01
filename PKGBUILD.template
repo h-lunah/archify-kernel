@@ -10,18 +10,17 @@ url="https://www.kernel.org/"
 arch=(x86_64)
 license=(GPL2)
 makedepends=(bc cpio gettext git libelf pahole perl python tar xz rsync)
-options=('!strip')
+options=('strip')
 source=()
 # validpgpkeys=(
 #   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
 #   '647F28654894E3BD457199BE38DBBDC86092693E'  # Greg Kroah-Hartman
 # )
-# https://www.kernel.org/pub/linux/kernel/v4.x/sha256sums.asc
 md5sums=()
 sha256sums=()
 
 # set build metadata
-export KBUILD_BUILD_HOST=archlinux
+export KBUILD_BUILD_HOST=nanoarch
 export KBUILD_BUILD_USER=$pkgbase
 export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
 
@@ -30,8 +29,17 @@ export SRCPATH="$(pwd)"
 export CORECOUNT="$(nproc)"
 
 prepare() {
+  echo "Removing existing files..."
+  rm -rf $SRCPATH/{pkg,src}
+  mkdir $SRCPATH/{pkg,src}
   echo "Copying..."
-  rsync -ar --mkpath --info=progress2 --no-inc-recursive $SRCPATH/ $SRCPATH/src/$_srcname
+  cd ..
+  rsync -ar --exclude=".git" --mkpath --info=progress2 --no-inc-recursive $SRCPATH/ $SRCPATH/src/$_srcname
+}
+
+build() {
+  cd $SRCPATH/src/$_srcname
+  make -j$CORECOUNT INSTALL_MOD_STRIP=1
 }
 
 _package() {
@@ -53,13 +61,13 @@ _package() {
   echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
 
   echo "Installing modules..."
-  make -j$CORECOUNT INSTALL_MOD_PATH="$pkgdir/usr" modules_install
+  make -j$CORECOUNT INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$pkgdir/usr" modules_install
   
   # remove build and source links
   rm -rf "$modulesdir"/{source,build}
 
   echo "Fixing permissions..."
-  chmod -Rc 644 "$pkgdir"
+  chmod -Rc u=rwX,go=rX "$pkgdir"
 }
 
 _package-headers() {
@@ -76,6 +84,7 @@ _package-headers() {
   cp -t "$builddir" -a scripts
 
   # add objtool for external module building and enabled VALIDATION_STACK option
+  strip -S tools/objtool/objtool
   install -Dt "$builddir/tools/objtool" tools/objtool/objtool
 
   # add xfs and shmem for aufs building
@@ -140,33 +149,10 @@ _package-headers() {
   ln -sr "$builddir" "$pkgdir/usr/src/$pkgbase"
 
   echo "Fixing permissions..."
-  chmod -Rc 644 "$pkgdir"
+  chmod -Rc u=rwX,go=rX "$pkgdir"
 }
 
-_package-docs() {
-  pkgdesc="Documentation for the $pkgdesc kernel"
-
-  cd $_srcname
-  local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
-
-  echo "Installing documentation..."
-  local src dst
-  while read -rd '' src; do
-    dst="${src#Documentation/}"
-    dst="$builddir/Documentation/${dst#output/}"
-    install -Dm644 "$src" "$dst"
-  done < <(find Documentation -name '.*' -prune -o ! -type d -print0)
-
-  echo "Adding symlink..."
-  mkdir -p "$pkgdir/usr/share/doc"
-  ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
-
-  echo "Fixing permissions..."
-  chmod -Rc 644 "$pkgdir"
-  rm -rf $SRCDIR/pkg $SRCDIR/src
-}
-
-pkgname=("$pkgbase" "$pkgbase-headers" "$pkgbase-docs")
+pkgname=("$pkgbase" "$pkgbase-headers")
 for _p in "${pkgname[@]}"; do
   eval "package_$_p() {
     $(declare -f "_package${_p#$pkgbase}")

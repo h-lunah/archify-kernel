@@ -74,7 +74,6 @@ if [ -n "$LINE" ]; then
 else
   msg "warning: signature not found. this kernel may overwrite your patched version"
 fi
-( cd $KERNELPATH && patch -Np1 -i $CURRENTPATH/PKGBUILD.patch || msg "patch not applied. kernel will not compile automatically"; exit 0 )
 
 cd $KERNELPATH
 makej tinyconfig
