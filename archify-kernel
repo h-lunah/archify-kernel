@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # set up variables, these will be checked and used later
@@ -19,7 +19,7 @@ msg() {
 }
 
 # print usage if no parameters provided
-if [[ -z $KERNELPATH ||-z $KERNELSUFFIX ]]; then
+if [[ -z "$KERNELPATH" || -z "$KERNELSUFFIX" ]]; then
   msg "usage: $CURRENTBINARY path_to_kernel_tree kernel_suffix\nexample: $CURRENTBINARY /path/to/linux-source hardened\nuse --no-config to not prompt for .config creation"
   exit 1
 fi
@@ -30,7 +30,7 @@ if ! stat $KERNELPATH &>/dev/null; then
   exit 1
 fi
 
-if [[ -d $KERNELPATH ]]; then
+if [[ -d "$KERNELPATH" ]]; then
   cd $KERNELPATH
   if ! makej -s kernelversion &>/dev/null; then
     msg "$KERNELPATH: not a linux kernel tree"
@@ -84,9 +84,9 @@ rm .config
 cd $CURRENTPATH
 
 # tell the user to configure the kernel
-if [ $EXTRAOPTION = "--no-config" ]; then
+if [ "$EXTRAOPTION" = "--no-config" ]; then
   :
-elif [ -z $EXTRAOPTION ]; then
+elif [ -z "$EXTRAOPTION" ]; then
   msg "now configure your kernel. press any key to invoke configuration tool..."
   read -p ""
   cd $KERNELPATH
@@ -102,7 +102,7 @@ fi
 cd $CURRENTPATH
 
 # check if the user made a config here or not, if not, tell them to put a .config later
-if [ ! -f $KERNELPATH/.config ]; then
+if [ ! -f "$KERNELPATH/.config" ]; then
   msg "no .config for this $KERNELVERSION-$KERNELSUFFIX kernel was found, you are expected to put your own config now."
   exit 0
 else
