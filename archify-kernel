@@ -2,7 +2,7 @@
 set -e
 
 # set up variables, these will be checked and used later
-CURRENTBINARY=$(cat /proc/$$/comm)
+CURRENTBINARY=$(basename "$0")
 CURRENTPATH=$PWD
 KERNELPATH=$1
 KERNELSUFFIX=$2
@@ -10,12 +10,12 @@ EXTRAOPTION=$3
 
 # run the make command specified as fast as possible
 makej() {
-	make ARCH=x86_64 -j$(nproc) "$@"
+	make ARCH=x86_64 -j "$(nproc)" "$@"
 }
 
 # print a verbose message
 msg() {
-  printf "$CURRENTBINARY: $1\n"
+  echo -e "$CURRENTBINARY: $1"
 }
 
 # print usage if no parameters provided
@@ -25,13 +25,13 @@ if [[ -z "$KERNELPATH" || -z "$KERNELSUFFIX" ]]; then
 fi
 
 # validate the tree
-if ! stat $KERNELPATH &>/dev/null; then
+if ! stat "$KERNELPATH" &>/dev/null; then
   msg "$KERNELPATH: no such file or directory"
   exit 1
 fi
 
 if [[ -d "$KERNELPATH" ]]; then
-  cd $KERNELPATH
+  cd "$KERNELPATH"
   if ! makej -s kernelversion &>/dev/null; then
     msg "$KERNELPATH: not a linux kernel tree"
     exit 1
@@ -40,13 +40,13 @@ else
   msg "$KERNELPATH: can only patch a directory structure"
   exit 1
 fi
-cd $CURRENTPATH
+cd "$CURRENTPATH"
 
 # fetch kernel version from tree
 msg "fetching kernel version..."
-cd $KERNELPATH
-echo "$(makej -s kernelversion)-$KERNELSUFFIX" > $CURRENTPATH/version
-cd $CURRENTPATH
+cd "$KERNELPATH"
+echo "$(makej -s kernelversion)-$KERNELSUFFIX" > "$CURRENTPATH/version"
+cd "$CURRENTPATH"
 
 KERNELVERSION=$(grep -Po "[0-9]\.[0-9]{1,2}\.[0-9]{1,3}" version)
 rm version
@@ -54,7 +54,7 @@ rm version
 # determine if we have to patch this kernel, do this only with kernels 5.1 and older
 if [ "$KERNELVERSION" = "$(echo -e "$KERNELVERSION\n5.1" | sort -V | head -n1)" ]; then
   msg "kernel detected is $KERNELVERSION<5.2.x, patching kernel features required by arch..."
-  ( cd $KERNELPATH && patch -Np1 -i $CURRENTPATH/modinfo-lt52.patch || exit 0 )
+  ( cd "$KERNELPATH" && patch -Np1 -i "$CURRENTPATH/modinfo-lt52.patch" || exit 0 )
 else
   msg "kernel detected is $KERNELVERSION>=5.2.x, it will not be patched."
 fi
@@ -62,26 +62,27 @@ fi
 # generate arch build system files
 msg "generating arch build system files..."
 source PKGBUILD.template
-echo "-$pkgrel" > $KERNELPATH/localversion.10-pkgrel
-echo "-$KERNELSUFFIX" > $KERNELPATH/localversion.20-pkgname
+echo "-$pkgrel" > "$KERNELPATH/localversion.10-pkgrel"
+echo "-$KERNELSUFFIX" > "$KERNELPATH/localversion.20-pkgname"
 
-echo "$KERNELVERSION-$KERNELSUFFIX" > $KERNELPATH/version
-echo "$(cat PKGBUILD.template | sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g")" > $KERNELPATH/PKGBUILD
+echo "$KERNELVERSION-$KERNELSUFFIX" > "$KERNELPATH/version"
+sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g" PKGBUILD.template > "$KERNELPATH/PKGBUILD"
 
 LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' $KERNELPATH/Makefile | grep -Po '^[^:]+' || test $? = 1; )
 if [ -n "$LINE" ]; then
-  sed -i "${LINE}s/ FORCE//g" $KERNELPATH/Makefile
+  sed -i "${LINE}s/ FORCE//g" "$KERNELPATH/Makefile"
 else
   msg "warning: signature not found. this kernel may overwrite your patched version"
 fi
 
-cd $KERNELPATH
+cd "$KERNELPATH"
 makej tinyconfig
 makej prepare
 echo "$KERNELVERSION-$KERNELSUFFIX" > include/config/kernel.release
 echo "#define UTS_RELEASE \"$KERNELVERSION-$KERNELSUFFIX\"" > include/generated/utsrelease.h
 rm .config
-cd $CURRENTPATH
+makej clean
+cd "$CURRENTPATH"
 
 # tell the user to configure the kernel
 if [ "$EXTRAOPTION" = "--no-config" ]; then
@@ -89,17 +90,17 @@ if [ "$EXTRAOPTION" = "--no-config" ]; then
 elif [ -z "$EXTRAOPTION" ]; then
   msg "now configure your kernel. press any key to invoke configuration tool..."
   read -p ""
-  cd $KERNELPATH
+  cd "$KERNELPATH"
   makej menuconfig
 else
   msg "warning: ignoring unrecognized option $EXTRAOPTION"
   msg "now configure your kernel. press any key to invoke configuration tool..."
   read -p ""
-  cd $KERNELPATH
+  cd "$KERNELPATH"
   makej menuconfig
 fi
 
-cd $CURRENTPATH
+cd "$CURRENTPATH"
 
 # check if the user made a config here or not, if not, tell them to put a .config later
 if [ ! -f "$KERNELPATH/.config" ]; then
