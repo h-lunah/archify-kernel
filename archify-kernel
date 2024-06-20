@@ -10,10 +10,10 @@ EXTRAOPTION=$3
 
 # run the make command specified as fast as possible
 makej() {
-	make ARCH=x86_64 -j "$(nproc)" "$@"
+	make KCFLAGS="-Oz -pipe" KBUILD_BUILD_HOST="archlinux" -j "$(nproc)" "$@"
 }
 
-# print a verbose message
+# print a message
 msg() {
   echo -e "$CURRENTBINARY: $1"
 }
@@ -61,6 +61,8 @@ fi
 
 # generate arch build system files
 msg "generating arch build system files..."
+pkgrel=null
+# shellcheck disable=SC1091
 source PKGBUILD.template
 echo "-$pkgrel" > "$KERNELPATH/localversion.10-pkgrel"
 echo "-$KERNELSUFFIX" > "$KERNELPATH/localversion.20-pkgname"
@@ -68,7 +70,8 @@ echo "-$KERNELSUFFIX" > "$KERNELPATH/localversion.20-pkgname"
 echo "$KERNELVERSION-$KERNELSUFFIX" > "$KERNELPATH/version"
 sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g" PKGBUILD.template > "$KERNELPATH/PKGBUILD"
 
-LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' $KERNELPATH/Makefile | grep -Po '^[^:]+' || test $? = 1; )
+# shellcheck disable=SC2016
+LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' "$KERNELPATH/Makefile" | grep -Po '^[^:]+' || test $? = 1; )
 if [ -n "$LINE" ]; then
   sed -i "${LINE}s/ FORCE//g" "$KERNELPATH/Makefile"
 else
@@ -85,17 +88,17 @@ makej clean
 cd "$CURRENTPATH"
 
 # tell the user to configure the kernel
-if [ "$EXTRAOPTION" = "--no-config" ]; then
-  :
+if [ "$EXTRAOPTION" = "--no-config" ]; then :;
+  # visual indent
 elif [ -z "$EXTRAOPTION" ]; then
   msg "now configure your kernel. press any key to invoke configuration tool..."
-  read -p ""
+  read -n1 -r -p ""
   cd "$KERNELPATH"
   makej menuconfig
 else
   msg "warning: ignoring unrecognized option $EXTRAOPTION"
   msg "now configure your kernel. press any key to invoke configuration tool..."
-  read -p ""
+  read -n1 -r -p ""
   cd "$KERNELPATH"
   makej menuconfig
 fi
