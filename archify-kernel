@@ -75,7 +75,8 @@ LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' "$KERN
 if [ -n "$LINE" ]; then
   sed -i "${LINE}s/ FORCE//g" "$KERNELPATH/Makefile"
 else
-  msg "warning: signature not found. this kernel may overwrite your patched version"
+  msg "note: signature not found: this kernel is a recent version and may overwrite the patched suffix"
+  msg "note: if this is the case, edit .config with the correct suffix"
 fi
 
 cd "$KERNELPATH"
