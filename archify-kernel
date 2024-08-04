@@ -10,35 +10,35 @@ EXTRAOPTION=$3
 
 # run the make command specified as fast as possible
 makej() {
-	make KCFLAGS="-Oz -pipe" KBUILD_BUILD_HOST="archlinux" -j "$(nproc)" "$@"
+    make KCFLAGS="-Oz -pipe" KBUILD_BUILD_HOST="archlinux" -j "$(nproc)" "$@"
 }
 
 # print a message
 msg() {
-  echo -e "$CURRENTBINARY: $1"
+    echo -e "$CURRENTBINARY: $1"
 }
 
 # print usage if no parameters provided
 if [[ -z "$KERNELPATH" || -z "$KERNELSUFFIX" ]]; then
-  msg "usage: $CURRENTBINARY path_to_kernel_tree kernel_suffix\nexample: $CURRENTBINARY /path/to/linux-source hardened\nuse --no-config to not prompt for .config creation"
-  exit 1
+    msg "usage: $CURRENTBINARY path_to_kernel_tree kernel_suffix\nexample: $CURRENTBINARY /path/to/linux-source hardened\nuse --no-config to not prompt for .config creation"
+    exit 1
 fi
 
 # validate the tree
 if ! stat "$KERNELPATH" &>/dev/null; then
-  msg "$KERNELPATH: no such file or directory"
-  exit 1
+    msg "$KERNELPATH: no such file or directory"
+    exit 1
 fi
 
 if [[ -d "$KERNELPATH" ]]; then
-  cd "$KERNELPATH"
-  if ! makej -s kernelversion &>/dev/null; then
-    msg "$KERNELPATH: not a linux kernel tree"
-    exit 1
-  fi
+    cd "$KERNELPATH"
+    if ! makej -s kernelversion &>/dev/null; then
+      msg "$KERNELPATH: not a linux kernel tree"
+      exit 1
+    fi
 else
-  msg "$KERNELPATH: can only patch a directory structure"
-  exit 1
+    msg "$KERNELPATH: can only patch a directory structure"
+    exit 1
 fi
 cd "$CURRENTPATH"
 
@@ -53,15 +53,16 @@ rm version
 
 # determine if we have to patch this kernel, do this only with kernels 5.1 and older
 if [ "$KERNELVERSION" = "$(echo -e "$KERNELVERSION\n5.1" | sort -V | head -n1)" ]; then
-  msg "kernel detected is $KERNELVERSION<5.2.x, patching kernel features required by arch..."
-  ( cd "$KERNELPATH" && patch -Np1 -i "$CURRENTPATH/modinfo-lt52.patch" || exit 0 )
+    msg "kernel detected is $KERNELVERSION<5.2.x, patching kernel features required by arch..."
+    ( cd "$KERNELPATH" && patch -Np1 -i "$CURRENTPATH/modinfo-lt52.patch" || exit 0 )
 else
-  msg "kernel detected is $KERNELVERSION>=5.2.x, it will not be patched."
+    msg "kernel detected is $KERNELVERSION>=5.2.x, it will not be patched."
 fi
 
 # generate arch build system files
 msg "generating arch build system files..."
 pkgrel=null
+
 # shellcheck disable=SC1091
 source PKGBUILD.template
 echo "-$pkgrel" > "$KERNELPATH/localversion.10-pkgrel"
@@ -73,10 +74,10 @@ sed -e "s/{KERNELVERSION}/$KERNELVERSION/g" -e "s/{KERNELSUFFIX}/$KERNELSUFFIX/g
 # shellcheck disable=SC2016
 LINE=$(grep -n 'include/config/kernel.release: $(srctree)/Makefile FORCE' "$KERNELPATH/Makefile" | grep -Po '^[^:]+' || test $? = 1; )
 if [ -n "$LINE" ]; then
-  sed -i "${LINE}s/ FORCE//g" "$KERNELPATH/Makefile"
+    sed -i "${LINE}s/ FORCE//g" "$KERNELPATH/Makefile"
 else
-  msg "note: signature not found: this kernel is a recent version and may overwrite the patched suffix"
-  msg "note: if this is the case, edit .config with the correct suffix"
+    msg "note: signature not found: this kernel is a recent version and may overwrite the patched suffix"
+    msg "note: if this is the case, edit .config with the correct suffix"
 fi
 
 cd "$KERNELPATH"
@@ -90,28 +91,28 @@ cd "$CURRENTPATH"
 
 # tell the user to configure the kernel
 if [ "$EXTRAOPTION" = "--no-config" ]; then :;
-  # visual indent
+    # visual indent
 elif [ -z "$EXTRAOPTION" ]; then
-  msg "now configure your kernel. press any key to invoke configuration tool..."
-  read -n1 -r -p ""
-  cd "$KERNELPATH"
-  makej menuconfig
+    msg "now configure your kernel. press any key to invoke configuration tool..."
+    read -n1 -r -p ""
+    cd "$KERNELPATH"
+    makej menuconfig
 else
-  msg "warning: ignoring unrecognized option $EXTRAOPTION"
-  msg "now configure your kernel. press any key to invoke configuration tool..."
-  read -n1 -r -p ""
-  cd "$KERNELPATH"
-  makej menuconfig
+    msg "warning: ignoring unrecognized option $EXTRAOPTION"
+    msg "now configure your kernel. press any key to invoke configuration tool..."
+    read -n1 -r -p ""
+    cd "$KERNELPATH"
+    makej menuconfig
 fi
 
 cd "$CURRENTPATH"
 
 # check if the user made a config here or not, if not, tell them to put a .config later
 if [ ! -f "$KERNELPATH/.config" ]; then
-  msg "no .config for this $KERNELVERSION-$KERNELSUFFIX kernel was found, you are expected to put your own config now."
-  exit 0
+    msg "no .config for this $KERNELVERSION-$KERNELSUFFIX kernel was found, you are expected to put your own config now."
+    exit 0
 else
-  msg "ready to build this $KERNELVERSION-$KERNELSUFFIX kernel"
+    msg "ready to build this $KERNELVERSION-$KERNELSUFFIX kernel"
 fi
 
 exit 0
